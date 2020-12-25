@@ -17,7 +17,7 @@ void websocket_connection::connect() {
     tcp::resolver::query query(this->address.c_str(), s_port);
     
     extension.LogMessage("Resolving %s", address.c_str());
-    this->resolver->async_resolve(query, beast::bind_front_handler(&websocket_connection::on_resolve, shared_from_this()));
+    this->resolver->async_resolve(query, beast::bind_front_handler(&websocket_connection::on_resolve, this));
 }
 
 void websocket_connection::on_resolve(beast::error_code ec, tcp::resolver::results_type results) {
@@ -27,7 +27,7 @@ void websocket_connection::on_resolve(beast::error_code ec, tcp::resolver::resul
     }
 
     beast::get_lowest_layer(*this->ws).expires_after(std::chrono::seconds(30));
-    beast::get_lowest_layer(*this->ws).async_connect(results, beast::bind_front_handler(&websocket_connection::on_connect, shared_from_this()));
+    beast::get_lowest_layer(*this->ws).async_connect(results, beast::bind_front_handler(&websocket_connection::on_connect, this));
 }
 
 void websocket_connection::on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type ep) {
@@ -47,7 +47,7 @@ void websocket_connection::on_connect(beast::error_code ec, tcp::resolver::resul
         boost::asio::ssl::stream_base::client,
         beast::bind_front_handler(
             &websocket_connection::on_ssl_handshake,
-            shared_from_this()));
+            this));
 }
 
 void websocket_connection::on_ssl_handshake(beast::error_code ec) {
@@ -62,7 +62,7 @@ void websocket_connection::on_ssl_handshake(beast::error_code ec) {
         req.set(beast::http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " sm-ext-websockets v" + SMEXT_CONF_VERSION);
     }));
 
-    this->ws->async_handshake(this->address, this->endpoint.c_str(), beast::bind_front_handler(&websocket_connection::on_handshake, shared_from_this()));
+    this->ws->async_handshake(this->address, this->endpoint.c_str(), beast::bind_front_handler(&websocket_connection::on_handshake, this));
 }
 
 void websocket_connection::on_handshake(beast::error_code ec) {
@@ -71,8 +71,7 @@ void websocket_connection::on_handshake(beast::error_code ec) {
         return;
     }
 
-    this->ws->async_write(boost::asio::buffer("foobar"), beast::bind_front_handler(&websocket_connection::on_write, shared_from_this()));
-    this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, shared_from_this()));
+    this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, this));
 }
 
 void websocket_connection::on_write(beast::error_code ec, size_t bytes_transferred) {
@@ -85,10 +84,32 @@ void websocket_connection::on_write(beast::error_code ec, size_t bytes_transferr
 void websocket_connection::on_read(beast::error_code ec, size_t bytes_transferred) {
     if (ec) {
         extension.LogError("WebSocket read error: %s", ec.message().c_str());
-        return this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, shared_from_this()));;
+        return this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, this));;
     }
+
     stringstream buffer;
     buffer << beast::make_printable(this->buffer.data());
     extension.LogMessage("Read %d bytes: %s", bytes_transferred, buffer.str().c_str());
-    this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, shared_from_this()));
+
+    if (this->read_callback) {
+        auto buffer = reinterpret_cast<uint8_t *>(malloc(bytes_transferred));
+        memcpy(buffer, reinterpret_cast<const uint8_t *>(this->buffer.data().data()), bytes_transferred);
+        this->buffer.consume(bytes_transferred);
+
+        this->read_callback->operator()(buffer, bytes_transferred);
+    }
+
+    this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, this));
+}
+
+void websocket_connection::write(boost::asio::const_buffer buffer) {
+    this->ws->async_write(buffer, beast::bind_front_handler(&websocket_connection::on_write, this));
+}
+
+void websocket_connection::set_write_callback(std::function<void(std::size_t)> callback) {
+    this->write_callback = make_unique<std::function<void(std::size_t)>>(callback);
+}
+
+void websocket_connection::set_read_callback(std::function<void(uint8_t *, std::size_t)> callback) {
+    this->read_callback = make_unique<std::function<void(uint8_t *, std::size_t)>>(callback);
 }

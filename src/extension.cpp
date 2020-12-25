@@ -18,6 +18,7 @@
 
 #include "extension.hpp"
 #include "websocket_connection.hpp"
+#include "smn_json.hpp"
 #include <atomic>
 
 WebSocketExtension extension;
@@ -32,8 +33,7 @@ bool WebSocketExtension::SDK_OnLoad(char *error, size_t err_max, bool late) {
         head->OnExtLoad();
         head = head->next;
     }
-    auto conn = make_shared<websocket_connection>("echo.websocket.org", "/", 443);
-    conn->connect();
+    smn_json.init_json();
     
     unloaded.store(false);
     return true;
@@ -45,7 +45,7 @@ void WebSocketExtension::SDK_OnUnload() {
         head->OnExtUnload();
         head = head->next;
     }
-
+    smn_json.unload_json();
     unloaded.store(true);
 }
 
@@ -82,4 +82,14 @@ void WebSocketExtension::LogError(const char *msg, ...) {
     va_end(vp);
     
     smutils->AddFrameAction(&log_err, reinterpret_cast<void *>(buffer));
+}
+
+void execute_cb(void *cb) {
+    std::unique_ptr<std::function<void()>> callback(reinterpret_cast<std::function<void()> *>(cb));
+    callback->operator()();
+}
+
+void WebSocketExtension::Defer(std::function<void()> callback) {
+    std::unique_ptr<std::function<void()>> cb = std::make_unique<std::function<void()>>(callback);
+    smutils->AddFrameAction(&execute_cb, cb.release());
 }

@@ -27,6 +27,7 @@ public:
     virtual void SDK_OnUnload();
     virtual void LogMessage(const char *msg, ...);
     virtual void LogError(const char *msg, ...);
+    virtual void Defer(std::function<void()> callback);
 };
 
 class WebSocketBase {

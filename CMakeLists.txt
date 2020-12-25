@@ -5,7 +5,9 @@ set(SOURCE_FILES
     src/smsdk_ext.cpp
     src/extension.cpp
     src/event_loop.cpp
-    src/websocket_connection.cpp)
+    src/websocket_connection.cpp
+    src/smn_json.cpp
+    src/smn_websocket.cpp)
 
 if(NOT TARGET)
     set(TARGET linux)
@@ -14,7 +16,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
     add_definitions(-DWIN32)
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L$ENV{HOME}/boost_1_75_0/stage/lib -v -std=c++17 -pipe -DSOURCEMOD_BUILD -fno-strict-aliasing -m32")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L$ENV{HOME}/boost_1_75_0/stage/lib -std=c++17 -pipe -DSOURCEMOD_BUILD -fno-strict-aliasing -m32")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
 endif()
@@ -26,7 +28,7 @@ endif()
 set(CMAKE_SKIP_BUILD_RPATH true)
 set(CMAKE_VERBOSE_MAKEFILE false)
 
-include_directories(sourcemod/public sourcepawn/include amtl amtl/amtl)
+include_directories(sourcemod/public sourcepawn/include amtl amtl/amtl json/include)
 
 add_library(websocket.ext SHARED ${SOURCE_FILES})
 
