@@ -96,13 +96,13 @@ static cell_t native_SetReadCallback(IPluginContext *p_context, const cell_t *pa
     }
 
     connection->set_read_callback([callback, hndl_websocket, p_context](auto buffer, auto size) {
-        extension.Defer([callback, hndl_websocket, buffer, size, p_context]() {
-            try {
-                string message(reinterpret_cast<const char*>(buffer), size);
-                auto j = json::parse(message);
-                auto j_ptr = new json(j);
+        string message(reinterpret_cast<const char*>(buffer), size);
+        free(buffer);
 
-                Handle_t handle = handlesys->CreateHandle(json_handle_type, j_ptr, p_context->GetIdentity(), myself->GetIdentity(), NULL);
+        extension.Defer([callback, hndl_websocket, message, p_context]() {
+            try {
+                auto j = make_unique<json>(json::parse(message));
+                Handle_t handle = handlesys->CreateHandle(json_handle_type, j.release(), p_context->GetIdentity(), myself->GetIdentity(), NULL);
                 callback->PushCell(hndl_websocket);
                 callback->PushCell(handle);
                 callback->Execute(nullptr);
