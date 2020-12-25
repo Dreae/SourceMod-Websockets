@@ -14,7 +14,6 @@
  * limitations under the License.
 **/
 #include "smn_json.hpp"
-#include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 

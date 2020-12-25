@@ -71,6 +71,11 @@ void websocket_connection::on_handshake(beast::error_code ec) {
         return;
     }
 
+    this->buffer.clear();
+    if (this->connect_callback) {
+        this->connect_callback->operator()();
+    }
+
     this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, this));
 }
 
@@ -83,27 +88,48 @@ void websocket_connection::on_write(beast::error_code ec, size_t bytes_transferr
 
 void websocket_connection::on_read(beast::error_code ec, size_t bytes_transferred) {
     if (ec) {
-        extension.LogError("WebSocket read error: %s", ec.message().c_str());
-        return this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, this));;
+        if (this->pending_delete) {
+            delete this;
+        } else {
+            extension.LogError("WebSocket read error: %s", ec.message().c_str());
+            if (this->disconnect_callback) {
+                this->disconnect_callback->operator()();
+            }
+        }
+        return;
     }
-
-    stringstream buffer;
-    buffer << beast::make_printable(this->buffer.data());
-    extension.LogMessage("Read %d bytes: %s", bytes_transferred, buffer.str().c_str());
 
     if (this->read_callback) {
         auto buffer = reinterpret_cast<uint8_t *>(malloc(bytes_transferred));
         memcpy(buffer, reinterpret_cast<const uint8_t *>(this->buffer.data().data()), bytes_transferred);
-        this->buffer.consume(bytes_transferred);
 
         this->read_callback->operator()(buffer, bytes_transferred);
     }
+    this->buffer.consume(bytes_transferred);
 
     this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, this));
 }
 
+void websocket_connection::on_close(beast::error_code ec) {
+    if (ec) {
+        extension.LogError("WebSocket close error: %s", ec.message().c_str());
+        if (this->pending_delete) {
+            delete this;
+        }
+    }
+}
+
 void websocket_connection::write(boost::asio::const_buffer buffer) {
     this->ws->async_write(buffer, beast::bind_front_handler(&websocket_connection::on_write, this));
+}
+
+void websocket_connection::destroy() {
+    this->pending_delete = true;
+    this->close();
+}
+
+void websocket_connection::close() {
+    this->ws->async_close(websocket::close_code::normal, beast::bind_front_handler(&websocket_connection::on_close, this));
 }
 
 void websocket_connection::set_write_callback(std::function<void(std::size_t)> callback) {
@@ -112,4 +138,12 @@ void websocket_connection::set_write_callback(std::function<void(std::size_t)> c
 
 void websocket_connection::set_read_callback(std::function<void(uint8_t *, std::size_t)> callback) {
     this->read_callback = make_unique<std::function<void(uint8_t *, std::size_t)>>(callback);
+}
+
+void websocket_connection::set_connect_callback(std::function<void()> callback) {
+    this->connect_callback = make_unique<std::function<void()>>(callback);
+}
+
+void websocket_connection::set_disconnect_callback(std::function<void()> callback) {
+    this->disconnect_callback = make_unique<std::function<void()>>(callback);
 }

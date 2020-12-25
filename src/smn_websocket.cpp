@@ -28,7 +28,7 @@ void WebSocket::OnExtUnload() {
 }
 
 void WebSocket::OnHandleDestroy(HandleType_t type, void *object) {
-    delete reinterpret_cast<websocket_connection *>(object);
+    reinterpret_cast<websocket_connection *>(object)->destroy();
 }
 
 bool WebSocket::GetHandleApproxSize(HandleType_t type, void *object, unsigned int *size) {
@@ -44,7 +44,7 @@ HandleError websocket_read_handle(Handle_t hndl, IPluginContext *p_context, webs
     sec.pIdentity = myself->GetIdentity();
     HandleError herr;
     if ((herr = handlesys->ReadHandle(hndl, websocket_handle_type, &sec, reinterpret_cast<void **>(obj))) != HandleError_None) {
-        p_context->ReportError("Invalid JSON handle (error %d)", herr);
+        p_context->ReportError("Invalid WebSocket handle (error %d)", herr);
         return herr;
     }
 
@@ -71,9 +71,20 @@ static cell_t native_Connect(IPluginContext *p_context, const cell_t *params) {
     return 0;
 }
 
-static cell_t native_SetReadCallback(IPluginContext *p_context, const cell_t *params) {
+static cell_t native_Close(IPluginContext *p_context, const cell_t *params) {
     websocket_connection *connection;
     if (websocket_read_handle(params[1], p_context, &connection) != HandleError_None) {
+        return 0;
+    }
+
+    connection->close();
+    return 0;
+}
+
+static cell_t native_SetReadCallback(IPluginContext *p_context, const cell_t *params) {
+    websocket_connection *connection;
+    Handle_t hndl_websocket = params[1];
+    if (websocket_read_handle(hndl_websocket, p_context, &connection) != HandleError_None) {
         return 0;
     }
 
@@ -83,17 +94,19 @@ static cell_t native_SetReadCallback(IPluginContext *p_context, const cell_t *pa
         p_context->ReportError("Invalid handler callback provided");
         return 0;
     }
-    connection->set_read_callback([callback, p_context](auto buffer, auto size) {
-        extension.Defer([callback, buffer, size, p_context]() {
+
+    connection->set_read_callback([callback, hndl_websocket, p_context](auto buffer, auto size) {
+        extension.Defer([callback, hndl_websocket, buffer, size, p_context]() {
             try {
                 string message(reinterpret_cast<const char*>(buffer), size);
                 auto j = json::parse(message);
                 auto j_ptr = new json(j);
 
                 Handle_t handle = handlesys->CreateHandle(json_handle_type, j_ptr, p_context->GetIdentity(), myself->GetIdentity(), NULL);
+                callback->PushCell(hndl_websocket);
                 callback->PushCell(handle);
                 callback->Execute(nullptr);
-            } catch(std::invalid_argument e) {
+            } catch(nlohmann::detail::parse_error e) {
                 smutils->LogError(myself, "Error parsing WebSocket JSON: %s", e.what());
             }
         });
@@ -102,20 +115,72 @@ static cell_t native_SetReadCallback(IPluginContext *p_context, const cell_t *pa
     return 0;
 }
 
-static cell_t native_Write(IPluginContext *p_context, const cell_t *params) {
+static cell_t native_SetDisconnectCallback(IPluginContext *p_context, const cell_t *params) {
     websocket_connection *connection;
-    if (websocket_read_handle(params[1], p_context, &connection) != HandleError_None) {
+    Handle_t hndl_websocket = params[1];
+    if (websocket_read_handle(hndl_websocket, p_context, &connection) != HandleError_None) {
         return 0;
     }
 
-    connection->write(boost::asio::buffer("{\"message\": \"foobar\"}"));
+    auto callback = p_context->GetFunctionById((funcid_t)params[2]);
+    if (!callback) {
+        p_context->ReportError("Invalid handler callback provided");
+        return 0;
+    }
+
+    connection->set_disconnect_callback([callback, hndl_websocket, p_context]() {
+        extension.Defer([callback, hndl_websocket, p_context]() {
+            callback->PushCell(hndl_websocket);
+            callback->Execute(nullptr);
+        });
+    });
+
+    return 0;
+}
+
+static cell_t native_SetConnectCallback(IPluginContext *p_context, const cell_t *params) {
+    websocket_connection *connection;
+    Handle_t hndl_websocket = params[1];
+    if (websocket_read_handle(hndl_websocket, p_context, &connection) != HandleError_None) {
+        return 0;
+    }
+
+    auto callback = p_context->GetFunctionById((funcid_t)params[2]);
+    if (!callback) {
+        p_context->ReportError("Invalid handler callback provided");
+        return 0;
+    }
+
+    connection->set_connect_callback([callback, hndl_websocket, p_context]() {
+        extension.Defer([callback, hndl_websocket, p_context]() {
+            callback->PushCell(hndl_websocket);
+            callback->Execute(nullptr);
+        });
+    });
+
+    return 0;
+}
+
+static cell_t native_Write(IPluginContext *p_context, const cell_t *params) {
+    websocket_connection *connection;
+    json *j;
+    if (websocket_read_handle(params[1], p_context, &connection) != HandleError_None) {
+        return 0;
+    } else if(json_read_handle(params[2], p_context, &j) != HandleError_None) {
+        return 0;
+    }
+
+    connection->write(boost::asio::buffer(j->dump()));
     return 0;
 }
 
 const sp_nativeinfo_t sm_websocket_natives[] = {
     {"WebSocket.WebSocket", native_WebSocket},
     {"WebSocket.Connect", native_Connect},
+    {"WebSocket.Close", native_Close},
     {"WebSocket.SetReadCallback", native_SetReadCallback},
+    {"WebSocket.SetDisconnectCallback", native_SetDisconnectCallback},
+    {"WebSocket.SetConnectCallback", native_SetConnectCallback},
     {"WebSocket.Write", native_Write},
     {NULL, NULL}
 };

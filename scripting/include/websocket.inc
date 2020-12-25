@@ -3,7 +3,8 @@
 #endif
 #define __websocket_include
 
-typedef WebSocket_ReadCallback = function void (JSON message);
+typedef WebSocket_ReadCallback = function void (WebSocket ws, JSON message);
+typedef WebSocket_ConnectCallback = function void (WebSocket ws);
 
 enum WebSocket_Protocol {
     WebSocket_JSON
@@ -172,8 +173,11 @@ methodmap JSON < Handle {
 methodmap WebSocket < Handle {
     public native WebSocket(const char[] address, const char[] path, int port);
     public native void Connect();
+    public native void Close();
     public native void SetReadCallback(WebSocket_Protocol protocol, WebSocket_ReadCallback callback);
-    public native void Write();
+    public native void SetConnectCallback(WebSocket_ConnectCallback callback);
+    public native void SetDisconnectCallback(WebSocket_ConnectCallback callback);
+    public native void Write(JSON json);
 }
 
 public Extension:__ext_websocket = {
