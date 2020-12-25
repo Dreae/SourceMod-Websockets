@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "coroutine": "cpp",
+        "xmemory": "cpp",
+        "filesystem": "cpp",
+        "xlocale": "cpp",
+        "xlocinfo": "cpp",
+        "xstring": "cpp",
+        "*.ipp": "cpp",
+        "future": "cpp",
+        "system_error": "cpp",
+        "string": "cpp",
+        "memory": "cpp"
+    }
+}
