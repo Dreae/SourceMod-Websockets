@@ -174,9 +174,23 @@ static cell_t native_Write(IPluginContext *p_context, const cell_t *params) {
     return 0;
 }
 
+static cell_t native_SetHeader(IPluginContext *p_context, const cell_t *params) {
+    websocket_connection *connection;
+    if (websocket_read_handle(params[1], p_context, &connection) != HandleError_None) {
+        return 0;
+    }
+
+    char *header, *value;
+    p_context->LocalToString(params[2], &header);
+    p_context->LocalToString(params[3], &value);
+    connection->set_header(string(header), string(value));
+    return 0;
+}
+
 const sp_nativeinfo_t sm_websocket_natives[] = {
     {"WebSocket.WebSocket", native_WebSocket},
     {"WebSocket.Connect", native_Connect},
+    {"WebSocket.SetHeader", native_SetHeader},
     {"WebSocket.Close", native_Close},
     {"WebSocket.SetReadCallback", native_SetReadCallback},
     {"WebSocket.SetDisconnectCallback", native_SetDisconnectCallback},

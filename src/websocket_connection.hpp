@@ -15,6 +15,7 @@ using namespace std;
 class websocket_connection {
 public:
     websocket_connection(string address, string endpoint, uint16_t port);
+    void set_header(string key, string value);
     void connect();
     void write(boost::asio::const_buffer buffer);
     void destroy();
@@ -44,4 +45,6 @@ private:
     string endpoint;
     uint16_t port;
     bool pending_delete = false;
+    std::map<string, string> headers;
+    std::mutex header_mutex;
 };

@@ -172,6 +172,7 @@ methodmap JSON < Handle {
 
 methodmap WebSocket < Handle {
     public native WebSocket(const char[] address, const char[] path, int port);
+    public native void SetHeader(const char[] header, const char[] value);
     public native void Connect();
     public native void Close();
     public native void SetReadCallback(WebSocket_Protocol protocol, WebSocket_ReadCallback callback);

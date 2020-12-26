@@ -26,7 +26,7 @@ void websocket_connection::on_resolve(beast::error_code ec, tcp::resolver::resul
         return;
     }
 
-    beast::get_lowest_layer(*this->ws).expires_after(std::chrono::seconds(30));
+    beast::get_lowest_layer(*this->ws).expires_after(chrono::seconds(30));
     beast::get_lowest_layer(*this->ws).async_connect(results, beast::bind_front_handler(&websocket_connection::on_connect, this));
 }
 
@@ -36,8 +36,8 @@ void websocket_connection::on_connect(beast::error_code ec, tcp::resolver::resul
         return;
     }
 
-    auto host = this->address + ":" + std::to_string(this->port);
-    beast::get_lowest_layer(*this->ws).expires_after(std::chrono::seconds(30));
+    auto host = this->address + ":" + to_string(this->port);
+    beast::get_lowest_layer(*this->ws).expires_after(chrono::seconds(30));
     if (!SSL_set_tlsext_host_name(this->ws->next_layer().native_handle(), host.c_str())) {
         ec = beast::error_code(static_cast<int>(::ERR_get_error()), boost::asio::error::get_ssl_category());
         extension.LogError("SSL Error: %s", ec.message().c_str());
@@ -58,8 +58,14 @@ void websocket_connection::on_ssl_handshake(beast::error_code ec) {
     beast::get_lowest_layer(*this->ws).expires_never();
 
     this->ws->set_option(websocket::stream_base::timeout::suggested(beast::role_type::client));
-    this->ws->set_option(websocket::stream_base::decorator([](websocket::request_type& req) {
-        req.set(beast::http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " sm-ext-websockets v" + SMEXT_CONF_VERSION);
+    // All the callbacks in this class use `this` as a pointer instead of the smart pointer.
+    // That's because this class spends most of it's life managed by SourceMod
+    this->ws->set_option(websocket::stream_base::decorator([this](websocket::request_type& req) {
+        req.set(beast::http::field::user_agent, string(BOOST_BEAST_VERSION_STRING) + " sm-ext-websockets v" + SMEXT_CONF_VERSION);
+        lock_guard<mutex> guard(this->header_mutex);
+        for (pair<string, string> elem : this->headers) {
+            req.set(elem.first, elem.second);
+        }
     }));
 
     this->ws->async_handshake(this->address, this->endpoint.c_str(), beast::bind_front_handler(&websocket_connection::on_handshake, this));
@@ -132,18 +138,23 @@ void websocket_connection::close() {
     this->ws->async_close(websocket::close_code::normal, beast::bind_front_handler(&websocket_connection::on_close, this));
 }
 
-void websocket_connection::set_write_callback(std::function<void(std::size_t)> callback) {
-    this->write_callback = make_unique<std::function<void(std::size_t)>>(callback);
+void websocket_connection::set_write_callback(function<void(size_t)> callback) {
+    this->write_callback = make_unique<function<void(size_t)>>(callback);
 }
 
-void websocket_connection::set_read_callback(std::function<void(uint8_t *, std::size_t)> callback) {
-    this->read_callback = make_unique<std::function<void(uint8_t *, std::size_t)>>(callback);
+void websocket_connection::set_read_callback(function<void(uint8_t *, size_t)> callback) {
+    this->read_callback = make_unique<function<void(uint8_t *, size_t)>>(callback);
 }
 
-void websocket_connection::set_connect_callback(std::function<void()> callback) {
-    this->connect_callback = make_unique<std::function<void()>>(callback);
+void websocket_connection::set_connect_callback(function<void()> callback) {
+    this->connect_callback = make_unique<function<void()>>(callback);
 }
 
-void websocket_connection::set_disconnect_callback(std::function<void()> callback) {
-    this->disconnect_callback = make_unique<std::function<void()>>(callback);
+void websocket_connection::set_disconnect_callback(function<void()> callback) {
+    this->disconnect_callback = make_unique<function<void()>>(callback);
+}
+
+void websocket_connection::set_header(string header, string value) {
+    lock_guard<mutex> guard(this->header_mutex);
+    this->headers.insert_or_assign(header, value);
 }

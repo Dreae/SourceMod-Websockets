@@ -21,6 +21,7 @@ public Action websocket_connect(int args) {
     ws.SetReadCallback(WebSocket_JSON, ReadCallback);
     ws.SetConnectCallback(OnConnected);
     ws.SetDisconnectCallback(OnDisconnected);
+    ws.SetHeader("foo", "bar");
     ws.Connect();
 }
 
