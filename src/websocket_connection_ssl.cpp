@@ -1,36 +1,33 @@
-#include "websocket_connection.hpp"
+#include "websocket_connection_ssl.hpp"
 #include "event_loop.hpp"
 #include <boost/asio/strand.hpp>
 
-websocket_connection::websocket_connection(string address, string endpoint, uint16_t port) {
-    this->address = address;
-    this->endpoint = endpoint;
-    this->port = port;
+websocket_connection_ssl::websocket_connection_ssl(string address, string endpoint, uint16_t port) : websocket_connection_base(address, endpoint, port) {
     this->ws = make_unique<websocket::stream<beast::ssl_stream<beast::tcp_stream>>>(boost::asio::make_strand(event_loop.get_context()), event_loop.get_ssl_context());
     this->work = make_unique<boost::asio::io_context::work>(event_loop.get_context());
     this->resolver = make_shared<tcp::resolver>(event_loop.get_context());
 }
 
-void websocket_connection::connect() {
+void websocket_connection_ssl::connect() {
     char s_port[8];
     snprintf(s_port, sizeof(s_port), "%hu", this->port);
     tcp::resolver::query query(this->address.c_str(), s_port);
     
     extension.LogMessage("Resolving %s", address.c_str());
-    this->resolver->async_resolve(query, beast::bind_front_handler(&websocket_connection::on_resolve, this));
+    this->resolver->async_resolve(query, beast::bind_front_handler(&websocket_connection_ssl::on_resolve, this));
 }
 
-void websocket_connection::on_resolve(beast::error_code ec, tcp::resolver::results_type results) {
+void websocket_connection_ssl::on_resolve(beast::error_code ec, tcp::resolver::results_type results) {
     if (ec) {
         extension.LogError("Error resolving %s: %s", this->address.c_str(), ec.message().c_str());
         return;
     }
 
     beast::get_lowest_layer(*this->ws).expires_after(chrono::seconds(30));
-    beast::get_lowest_layer(*this->ws).async_connect(results, beast::bind_front_handler(&websocket_connection::on_connect, this));
+    beast::get_lowest_layer(*this->ws).async_connect(results, beast::bind_front_handler(&websocket_connection_ssl::on_connect, this));
 }
 
-void websocket_connection::on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type ep) {
+void websocket_connection_ssl::on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type ep) {
     if (ec) {
         extension.LogError("Error connecting to %s: %s", this->address.c_str(), ec.message().c_str());
         return;
@@ -46,11 +43,11 @@ void websocket_connection::on_connect(beast::error_code ec, tcp::resolver::resul
     this->ws->next_layer().async_handshake(
         boost::asio::ssl::stream_base::client,
         beast::bind_front_handler(
-            &websocket_connection::on_ssl_handshake,
+            &websocket_connection_ssl::on_ssl_handshake,
             this));
 }
 
-void websocket_connection::on_ssl_handshake(beast::error_code ec) {
+void websocket_connection_ssl::on_ssl_handshake(beast::error_code ec) {
     if (ec) {
         extension.LogError("SSL Handshake Error: %s", ec.message().c_str());
         return;
@@ -61,17 +58,13 @@ void websocket_connection::on_ssl_handshake(beast::error_code ec) {
     // All the callbacks in this class use `this` as a pointer instead of the smart pointer.
     // That's because this class spends most of it's life managed by SourceMod
     this->ws->set_option(websocket::stream_base::decorator([this](websocket::request_type& req) {
-        req.set(beast::http::field::user_agent, string(BOOST_BEAST_VERSION_STRING) + " sm-ext-websockets v" + SMEXT_CONF_VERSION);
-        lock_guard<mutex> guard(this->header_mutex);
-        for (pair<string, string> elem : this->headers) {
-            req.set(elem.first, elem.second);
-        }
+        this->add_headers(req);
     }));
 
-    this->ws->async_handshake(this->address, this->endpoint.c_str(), beast::bind_front_handler(&websocket_connection::on_handshake, this));
+    this->ws->async_handshake(this->address, this->endpoint.c_str(), beast::bind_front_handler(&websocket_connection_ssl::on_handshake, this));
 }
 
-void websocket_connection::on_handshake(beast::error_code ec) {
+void websocket_connection_ssl::on_handshake(beast::error_code ec) {
     if (ec) {
         extension.LogError("WebSocket Handshake Error: %s", ec.message().c_str());
         return;
@@ -82,17 +75,17 @@ void websocket_connection::on_handshake(beast::error_code ec) {
         this->connect_callback->operator()();
     }
 
-    this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, this));
+    this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection_ssl::on_read, this));
 }
 
-void websocket_connection::on_write(beast::error_code ec, size_t bytes_transferred) {
+void websocket_connection_ssl::on_write(beast::error_code ec, size_t bytes_transferred) {
     if (ec) {
         extension.LogError("WebSocket write error: %s", ec.message().c_str());
         return;
     }
 }
 
-void websocket_connection::on_read(beast::error_code ec, size_t bytes_transferred) {
+void websocket_connection_ssl::on_read(beast::error_code ec, size_t bytes_transferred) {
     if (ec) {
         if (this->pending_delete) {
             delete this;
@@ -113,10 +106,10 @@ void websocket_connection::on_read(beast::error_code ec, size_t bytes_transferre
     }
     this->buffer.consume(bytes_transferred);
 
-    this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection::on_read, this));
+    this->ws->async_read(this->buffer, beast::bind_front_handler(&websocket_connection_ssl::on_read, this));
 }
 
-void websocket_connection::on_close(beast::error_code ec) {
+void websocket_connection_ssl::on_close(beast::error_code ec) {
     if (ec) {
         extension.LogError("WebSocket close error: %s", ec.message().c_str());
         if (this->pending_delete) {
@@ -125,36 +118,15 @@ void websocket_connection::on_close(beast::error_code ec) {
     }
 }
 
-void websocket_connection::write(boost::asio::const_buffer buffer) {
-    this->ws->async_write(buffer, beast::bind_front_handler(&websocket_connection::on_write, this));
+void websocket_connection_ssl::write(boost::asio::const_buffer buffer) {
+    this->ws->async_write(buffer, beast::bind_front_handler(&websocket_connection_ssl::on_write, this));
 }
 
-void websocket_connection::destroy() {
+void websocket_connection_ssl::destroy() {
     this->pending_delete = true;
     this->close();
 }
 
-void websocket_connection::close() {
-    this->ws->async_close(websocket::close_code::normal, beast::bind_front_handler(&websocket_connection::on_close, this));
-}
-
-void websocket_connection::set_write_callback(function<void(size_t)> callback) {
-    this->write_callback = make_unique<function<void(size_t)>>(callback);
-}
-
-void websocket_connection::set_read_callback(function<void(uint8_t *, size_t)> callback) {
-    this->read_callback = make_unique<function<void(uint8_t *, size_t)>>(callback);
-}
-
-void websocket_connection::set_connect_callback(function<void()> callback) {
-    this->connect_callback = make_unique<function<void()>>(callback);
-}
-
-void websocket_connection::set_disconnect_callback(function<void()> callback) {
-    this->disconnect_callback = make_unique<function<void()>>(callback);
-}
-
-void websocket_connection::set_header(string header, string value) {
-    lock_guard<mutex> guard(this->header_mutex);
-    this->headers.insert_or_assign(header, value);
+void websocket_connection_ssl::close() {
+    this->ws->async_close(websocket::close_code::normal, beast::bind_front_handler(&websocket_connection_ssl::on_close, this));
 }

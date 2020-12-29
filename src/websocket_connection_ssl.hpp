@@ -6,24 +6,20 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio.hpp>
 #include <memory>
+#include "websocket_connection_base.hpp"
 
 namespace websocket = boost::beast::websocket;
 namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
 using namespace std;
 
-class websocket_connection {
+class websocket_connection_ssl : public websocket_connection_base {
 public:
-    websocket_connection(string address, string endpoint, uint16_t port);
-    void set_header(string key, string value);
+    websocket_connection_ssl(string address, string endpoint, uint16_t port);
     void connect();
     void write(boost::asio::const_buffer buffer);
     void destroy();
     void close();
-    void set_write_callback(std::function<void(std::size_t)> callback);
-    void set_read_callback(std::function<void(uint8_t *, std::size_t)> callback);
-    void set_connect_callback(std::function<void()> callback);
-    void set_disconnect_callback(std::function<void()> callback);
 private:
     void on_resolve(beast::error_code ec, tcp::resolver::results_type results);
     void on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type ep);
@@ -33,18 +29,7 @@ private:
     void on_read(beast::error_code ec, size_t bytes_transferred);
     void on_close(beast::error_code ec);
 
-    unique_ptr<std::function<void(uint8_t *, std::size_t)>> read_callback;
-    unique_ptr<std::function<void(std::size_t)>> write_callback;
-    unique_ptr<std::function<void()>> connect_callback;
-    unique_ptr<std::function<void()>> disconnect_callback;
     unique_ptr<websocket::stream<beast::ssl_stream<beast::tcp_stream>>> ws;
     unique_ptr<boost::asio::io_context::work> work;
     shared_ptr<tcp::resolver> resolver;
-    beast::flat_buffer buffer;
-    string address;
-    string endpoint;
-    uint16_t port;
-    bool pending_delete = false;
-    std::map<string, string> headers;
-    std::mutex header_mutex;
 };

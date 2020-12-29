@@ -17,7 +17,6 @@
  */
 
 #include "extension.hpp"
-#include "websocket_connection.hpp"
 #include "smn_json.hpp"
 #include <atomic>
 

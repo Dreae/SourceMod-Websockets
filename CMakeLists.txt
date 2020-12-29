@@ -5,7 +5,8 @@ set(SOURCE_FILES
     src/smsdk_ext.cpp
     src/extension.cpp
     src/event_loop.cpp
-    src/websocket_connection.cpp
+    src/websocket_connection_base.cpp
+    src/websocket_connection_ssl.cpp
     src/smn_json.cpp
     src/smn_websocket.cpp)
 

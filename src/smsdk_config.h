@@ -40,7 +40,7 @@
 /* Basic information exposed publicly */
 #define SMEXT_CONF_NAME			"WebSocket"
 #define SMEXT_CONF_DESCRIPTION	"Encrypted socket communication for SourceMod"
-#define SMEXT_CONF_VERSION		"1.0.0"
+#define SMEXT_CONF_VERSION		"1.0.1"
 #define SMEXT_CONF_AUTHOR		"Dreae"
 #define SMEXT_CONF_URL			"https://gitlab.com/Dreae/sm-ext-websocket/"
 #define SMEXT_CONF_LOGTAG		"WebSocket"
