@@ -34,3 +34,8 @@ void websocket_connection_base::add_headers(websocket::request_type& req) {
         req.set(elem.first, elem.second);
     }
 }
+
+void websocket_connection_base::destroy() {
+    this->pending_delete = true;
+    this->close();
+}

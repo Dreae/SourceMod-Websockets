@@ -20,6 +20,11 @@ public:
     void set_disconnect_callback(std::function<void()> callback);
     void set_header(string key, string value);
     void add_headers(websocket::request_type& req);
+    void destroy();
+
+    virtual void close() = 0;
+    virtual void connect() = 0;
+    virtual void write(boost::asio::const_buffer buffer) = 0;
 
 protected:
     unique_ptr<std::function<void(uint8_t *, std::size_t)>> read_callback;

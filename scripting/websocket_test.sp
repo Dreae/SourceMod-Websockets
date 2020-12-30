@@ -17,7 +17,7 @@ public void OnPluginStart() {
 WebSocket ws;
 
 public Action websocket_connect(int args) {
-    ws = new WebSocket("echo.websocket.org", "/", 443);
+    ws = WebSocket_FromURL("wss://echo.websocket.org");
     ws.SetReadCallback(WebSocket_JSON, ReadCallback);
     ws.SetConnectCallback(OnConnected);
     ws.SetDisconnectCallback(OnDisconnected);

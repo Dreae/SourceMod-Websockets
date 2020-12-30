@@ -7,8 +7,10 @@ set(SOURCE_FILES
     src/event_loop.cpp
     src/websocket_connection_base.cpp
     src/websocket_connection_ssl.cpp
+    src/websocket_connection.cpp
     src/smn_json.cpp
-    src/smn_websocket.cpp)
+    src/smn_websocket.cpp
+    CxxUrl/url.cpp)
 
 if(NOT TARGET)
     set(TARGET linux)
@@ -29,7 +31,7 @@ endif()
 set(CMAKE_SKIP_BUILD_RPATH true)
 set(CMAKE_VERBOSE_MAKEFILE false)
 
-include_directories(sourcemod/public sourcepawn/include amtl amtl/amtl json/include)
+include_directories(sourcemod/public sourcepawn/include amtl amtl/amtl json/include CxxUrl)
 
 add_library(websocket.ext SHARED ${SOURCE_FILES})
 

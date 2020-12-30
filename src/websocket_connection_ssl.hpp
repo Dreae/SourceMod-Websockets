@@ -18,7 +18,6 @@ public:
     websocket_connection_ssl(string address, string endpoint, uint16_t port);
     void connect();
     void write(boost::asio::const_buffer buffer);
-    void destroy();
     void close();
 private:
     void on_resolve(beast::error_code ec, tcp::resolver::results_type results);

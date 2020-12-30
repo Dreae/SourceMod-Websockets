@@ -54,7 +54,9 @@ void websocket_connection_ssl::on_ssl_handshake(beast::error_code ec) {
     }
     beast::get_lowest_layer(*this->ws).expires_never();
 
-    this->ws->set_option(websocket::stream_base::timeout::suggested(beast::role_type::client));
+    auto timeout = websocket::stream_base::timeout::suggested(beast::role_type::client);
+    timeout.keep_alive_pings = true;
+    this->ws->set_option(timeout);
     // All the callbacks in this class use `this` as a pointer instead of the smart pointer.
     // That's because this class spends most of it's life managed by SourceMod
     this->ws->set_option(websocket::stream_base::decorator([this](websocket::request_type& req) {
@@ -120,11 +122,6 @@ void websocket_connection_ssl::on_close(beast::error_code ec) {
 
 void websocket_connection_ssl::write(boost::asio::const_buffer buffer) {
     this->ws->async_write(buffer, beast::bind_front_handler(&websocket_connection_ssl::on_write, this));
-}
-
-void websocket_connection_ssl::destroy() {
-    this->pending_delete = true;
-    this->close();
 }
 
 void websocket_connection_ssl::close() {
