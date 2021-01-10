@@ -20,6 +20,9 @@ void websocket_connection::connect() {
 void websocket_connection::on_resolve(beast::error_code ec, tcp::resolver::results_type results) {
     if (ec) {
         extension.LogError("Error resolving %s: %s", this->address.c_str(), ec.message().c_str());
+        if (this->disconnect_callback) {
+            this->disconnect_callback->operator()();
+        }
         return;
     }
 
@@ -30,6 +33,9 @@ void websocket_connection::on_resolve(beast::error_code ec, tcp::resolver::resul
 void websocket_connection::on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type ep) {
     if (ec) {
         extension.LogError("Error connecting to %s: %s", this->address.c_str(), ec.message().c_str());
+        if (this->disconnect_callback) {
+            this->disconnect_callback->operator()();
+        }
         return;
     }
     beast::get_lowest_layer(*this->ws).expires_never();
@@ -46,6 +52,9 @@ void websocket_connection::on_connect(beast::error_code ec, tcp::resolver::resul
 void websocket_connection::on_handshake(beast::error_code ec) {
     if (ec) {
         extension.LogError("WebSocket Handshake Error: %s", ec.message().c_str());
+        if (this->disconnect_callback) {
+            this->disconnect_callback->operator()();
+        }
         return;
     }
 

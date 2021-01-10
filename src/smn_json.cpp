@@ -27,7 +27,7 @@ void SMJson::init_json() {
 
     handlesys->InitAccessDefaults(&tacc, &hacc);
     tacc.ident = myself->GetIdentity();
-    hacc.access[HandleAccess_Read] = HANDLE_RESTRICT_OWNER;
+    hacc.access[HandleAccess_Read] = HANDLE_RESTRICT_IDENTITY;
     tacc.access[HTypeAccess_Create] = true;
     tacc.access[HTypeAccess_Inherit] = true;
 

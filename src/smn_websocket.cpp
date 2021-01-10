@@ -108,16 +108,19 @@ static cell_t native_SetReadCallback(IPluginContext *p_context, const cell_t *pa
         return 0;
     }
 
-    connection->set_read_callback([callback, hndl_websocket, p_context](auto buffer, auto size) {
+    cell_t data = params[4];
+
+    connection->set_read_callback([callback, hndl_websocket, p_context, data](auto buffer, auto size) {
         string message(reinterpret_cast<const char*>(buffer), size);
         free(buffer);
 
-        extension.Defer([callback, hndl_websocket, message, p_context]() {
+        extension.Defer([callback, hndl_websocket, message, p_context, data]() {
             try {
                 auto j = make_unique<json>(json::parse(message));
                 Handle_t handle = handlesys->CreateHandle(json_handle_type, j.release(), p_context->GetIdentity(), myself->GetIdentity(), NULL);
                 callback->PushCell(hndl_websocket);
                 callback->PushCell(handle);
+                callback->PushCell(data);
                 callback->Execute(nullptr);
             } catch(nlohmann::detail::parse_error e) {
                 smutils->LogError(myself, "Error parsing WebSocket JSON: %s", e.what());
@@ -141,9 +144,12 @@ static cell_t native_SetDisconnectCallback(IPluginContext *p_context, const cell
         return 0;
     }
 
-    connection->set_disconnect_callback([callback, hndl_websocket, p_context]() {
-        extension.Defer([callback, hndl_websocket, p_context]() {
+    cell_t data = params[3];
+
+    connection->set_disconnect_callback([callback, hndl_websocket, p_context, data]() {
+        extension.Defer([callback, hndl_websocket, p_context, data]() {
             callback->PushCell(hndl_websocket);
+            callback->PushCell(data);
             callback->Execute(nullptr);
         });
     });
@@ -164,9 +170,12 @@ static cell_t native_SetConnectCallback(IPluginContext *p_context, const cell_t 
         return 0;
     }
 
-    connection->set_connect_callback([callback, hndl_websocket, p_context]() {
-        extension.Defer([callback, hndl_websocket, p_context]() {
+    cell_t data = params[3];
+
+    connection->set_connect_callback([callback, hndl_websocket, p_context, data]() {
+        extension.Defer([callback, hndl_websocket, p_context, data]() {
             callback->PushCell(hndl_websocket);
+            callback->PushCell(data);
             callback->Execute(nullptr);
         });
     });
