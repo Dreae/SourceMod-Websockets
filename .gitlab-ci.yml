@@ -7,11 +7,6 @@ stages:
   - build
   - bundle
 
-cache:
-  key: boost_1_75
-  paths:
-    - boost_1_75_0/
-
 before_script:
 - dnf -y install glibc-static.i686 openssl-devel.i686 libstdc++-static.i686 glibc-devel.i686 cmake make gcc g++
 - curl -o boost.tar.gz -L https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.gz
@@ -27,4 +22,14 @@ build:
   artifacts:
     paths:
       - build/websocket.ext.so
+
+bundle:
+  stage: bundle
+  script:
+    - mkdir -p extensions
+    - cp build/*.so extensions/
+  artifacts:
+    paths:
+      - extensions
+      - scripting
   
