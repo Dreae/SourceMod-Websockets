@@ -27,6 +27,13 @@ jobs:
       with:
         version: latest
         platform: x86
+    - name: Install openssl
+      run: |
+        New-Variable os -Value '${{ runner.os }}' -Option Constant
+        New-Variable linux_host -Value ($os -eq 'Linux') -Option Constant
+        if ($script:linux_host) {
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libssl-dev:i386
+        }
 
     - name: Build Boost
       id: boost
