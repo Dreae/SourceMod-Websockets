@@ -7,6 +7,11 @@ stages:
   - build
   - bundle
 
+cache:
+  key: boost_1_75
+  paths:
+    - boost_1_75_0/
+
 before_script:
 - dnf -y install glibc-static.i686 openssl-devel.i686 libstdc++-static.i686 glibc-devel.i686 cmake make gcc g++
 - curl -o boost.tar.gz -L https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.gz
@@ -17,7 +22,7 @@ before_script:
 build:
   stage: build
   script:
-    - cmake -B build/ -D "CMAKE_BUILD_TYPE=Release" -D "BOOST_LIBRARYDIR=boost_1_75_0/stage/x86/Release/lib" -D "BOOST_ROOT=boost_1_75_0"
+    - cmake -B build/ -D "CMAKE_BUILD_TYPE=Release" -D "BOOST_LIBRARYDIR=boost_1_75_0/stage/lib" -D "BOOST_ROOT=boost_1_75_0"
     - cmake --build build/ --config Release
   artifacts:
     paths:
