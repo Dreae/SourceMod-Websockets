@@ -22,7 +22,7 @@ before_script:
 build:
   stage: build
   script:
-    - cmake -B build/ -D "CMAKE_BUILD_TYPE=Release" -D "BOOST_LIBRARYDIR=boost_1_75_0/stage/lib" -D "BOOST_ROOT=boost_1_75_0"
+    - cmake -B build/ -D "CMAKE_BUILD_TYPE=Release" -D "BOOST_LIBRARYDIR=$PWD/boost_1_75_0/stage/lib" -D "BOOST_ROOT=$PWD/boost_1_75_0"
     - cmake --build build/ --config Release
   artifacts:
     paths:
