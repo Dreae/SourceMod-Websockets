@@ -28,7 +28,7 @@ jobs:
       with:
         # Version to build1.71.0
         version: 1.75.0
-        libraries: Asio
+        libraries: atomic json system thread exception
         platform: x86
         static: true
         static-runtime: true
