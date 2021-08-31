@@ -38,7 +38,7 @@ add_library(websocket.ext SHARED ${SOURCE_FILES})
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_link_libraries(websocket.ext)
 else()
-    include_directories($ENV{HOME}/boost_1_75_0)
+    include_directories(${BOOST_ROOT})
     target_link_libraries(websocket.ext -lpthread -lcrypto -lssl -Wl,--no-undefined -Wl,-Bstatic -lboost_system -static-libstdc++ -Wl,-Bdynamic)
 endif()
 
