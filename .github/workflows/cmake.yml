@@ -34,7 +34,7 @@ jobs:
         if ($script:linux_host) {
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libssl-dev:i386
         }
-
+      shell: pwsh
     - name: Build Boost
       id: boost
       # You may pin to the exact commit or the version.
