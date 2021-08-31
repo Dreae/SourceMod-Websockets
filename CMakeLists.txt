@@ -31,14 +31,13 @@ endif()
 set(CMAKE_SKIP_BUILD_RPATH true)
 set(CMAKE_VERBOSE_MAKEFILE false)
 
-include_directories(sourcemod/public sourcepawn/include amtl amtl/amtl json/include CxxUrl)
+include_directories(sourcemod/public sourcepawn/include amtl amtl/amtl json/include CxxUrl ${BOOST_ROOT})
 
 add_library(websocket.ext SHARED ${SOURCE_FILES})
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_link_libraries(websocket.ext)
 else()
-    include_directories(${BOOST_ROOT})
     target_link_libraries(websocket.ext -lpthread -lcrypto -lssl -Wl,--no-undefined -Wl,-Bstatic -lboost_system -static-libstdc++ -Wl,-Bdynamic)
 endif()
 

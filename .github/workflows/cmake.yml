@@ -29,6 +29,7 @@ jobs:
         platform: x86
 
     - name: Build Boost
+      id: boost
       # You may pin to the exact commit or the version.
       # uses: egor-tensin/build-boost@bfb61b9fccc827f0c502fc400f6f63cc74f2d79a
       uses: egor-tensin/build-boost@v1
